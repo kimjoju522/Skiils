@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>색상 조합 미리보기</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#EDEAE7;font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif;color:#222}
+h1{font-size:18px;margin:0;padding:18px 20px 4px}
+.sub{font-size:13px;color:#666;padding:0 20px 14px}
+.wrap{display:flex;flex-wrap:wrap;gap:20px;padding:0 20px 28px;align-items:flex-start}
+.opt{background:#fff;border-radius:16px;padding:16px;width:360px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.opt h2{font-size:16px;margin:0 0 2px}
+.mood{font-size:13px;color:#555;margin:0 0 12px}
+.chips{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.chip{border-radius:10px;overflow:hidden;border:1px solid rgba(0,0,0,.1)}
+.chip .c{height:56px}
+.chip .t{font-size:11px;padding:6px 6px 7px;line-height:1.35;background:#fff}
+.chip .t b{display:block;font-size:12px}
+.samples{display:flex;gap:10px;margin-bottom:12px}
+.card{width:164px;height:205px;border-radius:6px;position:relative;overflow:hidden;padding:14px 12px;display:flex;flex-direction:column;justify-content:flex-end;border:1px solid rgba(0,0,0,.1)}
+.card .band{position:absolute;left:0;right:0;bottom:0;height:54px;opacity:.6}
+.card .k{font-size:9px;font-weight:700;letter-spacing:.05em;margin-bottom:6px;position:relative}
+.card .ti{font-size:19px;font-weight:900;line-height:1.25;position:relative;letter-spacing:-.02em;word-break:keep-all}
+.card .ti em{font-style:normal}
+.card .su{font-size:10px;margin-top:6px;position:relative}
+.card.body{justify-content:center}
+.card .n{font-size:15px;font-weight:900;position:absolute;top:12px;left:12px}
+.card .bar{width:30px;height:3px;border-radius:2px;margin:7px 0}
+.card .tx{font-size:10px;line-height:1.5;position:relative}
+.card .btn{display:inline-block;font-size:9px;font-weight:700;padding:5px 9px;border-radius:99px;margin-top:8px;color:#fff;position:relative}
+.meta{font-size:12px;color:#444;line-height:1.6}
+.ok{color:#1c7a3a;font-weight:700}.warn{color:#b3261e;font-weight:700}
+</style>
+</head>
+<body>
+<h1>색상 조합 미리보기</h1>
+<div class="sub">같은 문구가 각 조합에서 어떻게 보이는지 확인하고 마음에 드는 안을 골라 주세요.</div>
+<div class="wrap" id="wrap"></div>
+
+<script>
+/* =====================================================================
+   여기만 수정하면 됩니다 (Claude가 채우는 부분)
+   - OPTIONS: 색상 조합 2~3안 (bg 메인 / sub 서브 / point 포인트 / ink 글자)
+   - SAMPLE: 견본 카드에 들어갈 문구 (제목의 <em>…</em>은 포인트 색)
+   ===================================================================== */
+const OPTIONS = [
+  { name:'A안 · 뮤트 로즈', mood:'차분한 핑크, 감성 뷰티', font:'제목 굵은 고딕 / 본문 부드러운 고딕',
+    bg:'#F4EDE8', sub:'#D9B9B4', point:'#B5485D', ink:'#2B2326' },
+  { name:'B안 · 클라우드 화이트', mood:'깔끔한 에디터 느낌', font:'제목 굵은 고딕 / 본문 가는 고딕',
+    bg:'#F1F1EE', sub:'#DCD9D6', point:'#C2577A', ink:'#2A2326' },
+  { name:'C안 · 나이트 베리', mood:'겨울 밤, 연말 모임 분위기', font:'제목 둥근 고딕 / 본문 고딕',
+    bg:'#241A20', sub:'#3E2A34', point:'#E8788F', ink:'#F7EEF1' }
+];
+const SAMPLE = {
+  kicker:'KEYWORD', title:'이 색끼리 <em>맞추면 끝</em>', sub:'부제 한 줄 예시',
+  num:'01', head:'핵심 한 가지', text:'본문은 이렇게 두세 줄로 짧게 써요', cta:'저장해 두기'
+};
+/* ===================================================================== */
+
+function lum(h){const c=[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)/255).map(v=>v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4));return .2126*c[0]+.7152*c[1]+.0722*c[2];}
+function ratio(a,b){const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);}
+function badge(r,min){return `<span class="${r>=min?'ok':'warn'}">${r.toFixed(1)}:1 ${r>=min?'충분':'부족'}</span>`;}
+
+document.getElementById('wrap').innerHTML = OPTIONS.map(o=>{
+  const chips=[['메인(배경)',o.bg],['서브',o.sub],['포인트',o.point],['글자',o.ink]].map(([l,h])=>
+    `<div class="chip"><div class="c" style="background:${h}"></div><div class="t"><b>${l}</b>${h.toUpperCase()}</div></div>`).join('');
+  const cover=`<div class="card" style="background:${o.bg};color:${o.ink}"><div class="band" style="background:${o.sub}"></div>
+    <div class="k" style="color:${o.point}">${SAMPLE.kicker}</div>
+    <div class="ti">${SAMPLE.title.replace(/<em>/g,`<em style="color:${o.point}">`)}</div>
+    <div class="su">${SAMPLE.sub}</div></div>`;
+  const body=`<div class="card body" style="background:${o.bg};color:${o.ink}">
+    <div class="n" style="color:${o.point}">${SAMPLE.num}</div>
+    <div class="ti" style="font-size:16px">${SAMPLE.head}</div>
+    <div class="bar" style="background:${o.point}"></div>
+    <div class="tx">${SAMPLE.text}</div>
+    <div><span class="btn" style="background:${o.point}">${SAMPLE.cta}</span></div></div>`;
+  return `<div class="opt"><h2>${o.name}</h2><p class="mood">${o.mood}<br>폰트: ${o.font}</p>
+    <div class="chips">${chips}</div><div class="samples">${cover}${body}</div>
+    <div class="meta">글자 대비 ${badge(ratio(o.ink,o.bg),4.5)}<br>포인트 대비 ${badge(ratio(o.point,o.bg),3)} (큰 글자 기준)</div></div>`;
+}).join('');
+</script>
+</body>
+</html>

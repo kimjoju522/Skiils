@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>카드뉴스 편집기</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&family=Gowun+Dodum&family=Noto+Serif+KR:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+/* ===== 색상·폰트 (위쪽 도구 막대에서도 바꿀 수 있음) ===== */
+:root{
+  --bg:#F6EFE4; --sub:#E3CDB0; --point:#C26A3D; --ink:#2E2620;
+  --title-font:'Noto Sans KR',sans-serif;
+  --body-font:'Noto Sans KR',sans-serif;
+  --z:.38; /* 화면 표시 배율 (저장할 때는 자동으로 1) */
+}
+*{box-sizing:border-box}
+body{margin:0;background:#e9e6e4;font-family:'Noto Sans KR',sans-serif;color:#222}
+.toolbar{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid #ddd;padding:12px 16px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;font-size:14px}
+.toolbar label{display:flex;align-items:center;gap:6px}
+.toolbar input[type=color]{width:34px;height:30px;border:1px solid #ccc;padding:0;background:none;cursor:pointer}
+.toolbar select,.toolbar button{font:inherit;padding:6px 10px;border:1px solid #bbb;border-radius:8px;background:#fff;cursor:pointer}
+.toolbar button.primary{background:#222;color:#fff;border-color:#222}
+@media (max-width:700px){.toolbar{position:static}}
+.hint{font-size:13px;color:#666;padding:10px 16px}
+.gallery{display:flex;flex-wrap:wrap;gap:20px;padding:16px;align-items:flex-start}
+.slot{display:flex;flex-direction:column;gap:8px}
+.slot .label{font-size:13px;color:#555;display:flex;justify-content:space-between;align-items:center}
+.slot button{font:inherit;font-size:12px;padding:4px 8px;border:1px solid #bbb;border-radius:6px;background:#fff;cursor:pointer}
+
+/* ===== 카드 (1080 x 1350, 인스타그램 4:5) ===== */
+.card{
+  width:1080px;height:1350px;zoom:var(--z);
+  background:var(--bg);color:var(--ink);
+  padding:100px 90px;position:relative;overflow:hidden;
+  display:flex;flex-direction:column;justify-content:center;gap:40px;
+  font-family:var(--body-font);word-break:keep-all;
+}
+.card [contenteditable]{outline:none}
+.card [contenteditable]:hover{background:rgba(0,0,0,.04)}
+.card [contenteditable]:focus{background:rgba(0,0,0,.07)}
+.card .title{font-family:var(--title-font);font-weight:900;line-height:1.25;letter-spacing:-.02em}
+.card .kicker{font-size:40px;font-weight:700;color:var(--point);letter-spacing:.04em}
+.card .sub{font-size:46px;line-height:1.5}
+.card .num{position:absolute;top:80px;left:90px;font-family:var(--title-font);font-weight:900;font-size:56px;color:var(--point)}
+.card .page{position:absolute;bottom:70px;right:90px;font-size:32px;color:var(--ink);opacity:.45}
+.card .bar{width:120px;height:14px;background:var(--point);border-radius:8px}
+.card .band{position:absolute;left:0;right:0;bottom:0;height:260px;background:var(--sub);opacity:.55}
+
+/* 표지 */
+.card.cover{justify-content:flex-end;padding-bottom:180px}
+.card.cover .title{font-size:116px}
+.card .title em{font-style:normal;color:var(--point)}
+.card.cover .sub{opacity:.8}
+/* 본문 */
+.card.body{justify-content:center;padding-top:200px}
+.card.body .title{font-size:88px}
+.card.body .sub{font-size:50px;white-space:pre-line;line-height:1.7}
+.card .sub b{color:var(--point);font-weight:700;margin-right:14px}
+/* 리스트 */
+.card.list .title{font-size:84px}
+.card.list ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:28px}
+.card.list li{font-size:50px;line-height:1.4;padding:30px 36px;background:var(--sub);border-radius:28px;display:flex;gap:24px;align-items:baseline}
+.card.list li b{color:var(--point);font-family:var(--title-font);font-weight:900;font-size:56px}
+/* 제품 카드 */
+.card.product{justify-content:flex-start;padding-top:170px;gap:26px}
+.card.product .brand{font-size:40px;font-weight:700;color:var(--point);letter-spacing:.04em}
+.card.product .title{font-size:72px}
+.card.product .pimg{width:100%;height:520px;border-radius:36px;background:var(--sub);display:flex;align-items:center;justify-content:center;overflow:hidden;flex:none}
+.card.product .pimg img{width:100%;height:100%;object-fit:cover}
+.card.product .chip{width:290px;height:290px;border-radius:50%;box-shadow:inset 0 0 0 10px rgba(255,255,255,.35)}
+.card.product .pimg{position:relative;cursor:pointer}
+.card.product .pimg.drag{outline:6px dashed var(--point);outline-offset:-6px}
+.card.product .ph{position:absolute;left:0;right:0;bottom:22px;text-align:center;font-size:30px;color:var(--ink);opacity:.6}
+body.exporting .card .ph{display:none}
+.card.product .shade-line{font-size:44px;display:flex;align-items:center;gap:18px}
+.card.product .dot{width:44px;height:44px;border-radius:50%;flex:none;box-shadow:inset 0 0 0 3px rgba(0,0,0,.12)}
+.card.product .approx{font-size:28px;opacity:.55}
+.card.product .price{font-size:44px;font-weight:700}
+.card.product .note{font-size:40px;line-height:1.5}
+/* 마무리 */
+.card.end{align-items:flex-start}
+.card.end .title{font-size:104px}
+.card.end .cta{display:inline-block;background:var(--point);color:#fff;font-size:48px;font-weight:700;padding:28px 52px;border-radius:999px}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <strong>카드뉴스 편집기</strong>
+  <label>배경 <input type="color" id="c-bg"></label>
+  <label>서브 <input type="color" id="c-sub"></label>
+  <label>포인트 <input type="color" id="c-point"></label>
+  <label>글자 <input type="color" id="c-ink"></label>
+  <label>제목 폰트
+    <select id="f-title">
+      <option value="'Noto Sans KR',sans-serif">고딕 (굵게)</option>
+      <option value="'Noto Serif KR',serif">명조</option>
+      <option value="'Gowun Dodum',sans-serif">둥근 느낌</option>
+    </select>
+  </label>
+  <label>본문 폰트
+    <select id="f-body">
+      <option value="'Noto Sans KR',sans-serif">고딕</option>
+      <option value="'Noto Serif KR',serif">명조</option>
+      <option value="'Gowun Dodum',sans-serif">둥근 느낌</option>
+    </select>
+  </label>
+  <button class="primary" id="save-all">전체 PNG 저장</button>
+</div>
+<div class="hint">글자를 클릭하면 바로 고칠 수 있어요. 색과 폰트는 위에서 바꿔요. 저장한 PNG를 인스타그램에 올리면 돼요. (수정한 내용은 새로고침하면 사라지니 저장을 먼저 하세요.)</div>
+
+<div class="gallery" id="gallery"></div>
+
+<script>
+/* =====================================================================
+   여기만 수정하면 됩니다 (Claude가 채우는 부분)
+   - PALETTE: 색과 폰트
+   - CARDS: 카드 내용. type은 cover / body / list / product / end 중 하나
+   ===================================================================== */
+const PALETTE = {
+  bg:'#F6EFE4', sub:'#E3CDB0', point:'#C26A3D', ink:'#2E2620',
+  titleFont:"'Noto Sans KR',sans-serif", bodyFont:"'Noto Sans KR',sans-serif"
+};
+
+/* 제목 안에서 <em>강조할 말</em> 을 쓰면 포인트 색으로 표시돼요
+   제품 카드 예: { type:'product', num:'01', brand:'브랜드', title:'제품명', shade:'#05 컬러명',
+     swatch:'#5A2E4A', price:'12,000원 (11월 19일 확인)', note:'공식 설명 한 줄', img:'images/01.jpg' }
+   img를 비우면 swatch(근사색) 컬러 칩이 보여요. 이미지는 사용 허락을 확인한 것만 넣으세요. */
+const CARDS = [
+  { type:'cover', kicker:'KEYWORD', title:'여기에 <em>후킹 문구</em>를 넣어요', sub:'이 게시물에서 얻을 것 한 줄' },
+  { type:'body',  num:'01', title:'첫 번째 핵심', sub:'설명은 두세 줄로\n짧게 써요' },
+  { type:'body',  num:'02', title:'두 번째 핵심', sub:'한 장에\n메시지 하나만' },
+  { type:'list',  num:'03', title:'한눈에 보기', items:['항목 하나','항목 둘','항목 셋'] },
+  { type:'end',   title:'저장해 두고<br><em>필요할 때</em> 꺼내 봐요', cta:'저장 · 댓글로 알려주세요' }
+];
+
+/* ===================================================================== */
+const root = document.documentElement.style;
+const $ = id => document.getElementById(id);
+
+function applyPalette(){
+  root.setProperty('--bg', PALETTE.bg);
+  root.setProperty('--sub', PALETTE.sub);
+  root.setProperty('--point', PALETTE.point);
+  root.setProperty('--ink', PALETTE.ink);
+  root.setProperty('--title-font', PALETTE.titleFont);
+  root.setProperty('--body-font', PALETTE.bodyFont);
+  $('c-bg').value = PALETTE.bg; $('c-sub').value = PALETTE.sub;
+  $('c-point').value = PALETTE.point; $('c-ink').value = PALETTE.ink;
+  setSelect($('f-title'), PALETTE.titleFont); setSelect($('f-body'), PALETTE.bodyFont);
+}
+function setSelect(sel, val){
+  const opt = [...sel.options].find(o => o.value === val);
+  if(opt) sel.value = val;
+}
+[['c-bg','--bg'],['c-sub','--sub'],['c-point','--point'],['c-ink','--ink']].forEach(([id,v])=>{
+  $(id).addEventListener('input', e => root.setProperty(v, e.target.value));
+});
+$('f-title').addEventListener('change', e => root.setProperty('--title-font', e.target.value));
+$('f-body').addEventListener('change', e => root.setProperty('--body-font', e.target.value));
+
+const E = (cls, html) => `<div class="${cls}" contenteditable="true">${html}</div>`;
+
+function cardHTML(c, i, total){
+  const page = `<div class="page">${i+1} / ${total}</div>`;
+  if(c.type === 'cover'){
+    return `<div class="band"></div>${c.kicker?E('kicker',c.kicker):''}${E('title',c.title)}${c.sub?E('sub',c.sub):''}`;
+  }
+  if(c.type === 'list'){
+    const items = (c.items||[]).map((t,k)=>`<li><b>${k+1}</b><span contenteditable="true">${t}</span></li>`).join('');
+    return `${c.num?`<div class="num">${c.num}</div>`:''}${E('title',c.title)}<div class="bar"></div><ul>${items}</ul>${page}`;
+  }
+  if(c.type === 'product'){
+    const media = c.img
+      ? `<div class="pimg"><img src="${c.img}" alt="" onerror="fallbackChip(this,'${c.swatch||'#999'}')"></div>`
+      : `<div class="pimg"><div class="chip" style="background:${c.swatch||'#999'}"></div><div class="ph">사진 넣기 · 클릭하거나 끌어다 놓기</div></div>`;
+    const dot = c.swatch ? `<span class="dot" style="background:${c.swatch}"></span>` : '';
+    const approx = (c.swatch && !c.img) ? '<span class="approx">근사색</span>' : '';
+    return `${c.num?`<div class="num">${c.num}</div>`:''}${E('brand',c.brand||'')}${E('title',c.title||'')}${media}<div class="shade-line">${dot}<span contenteditable="true">${c.shade||''}</span>${approx}</div>${c.price?E('price',c.price):''}${c.note?E('note',c.note):''}${page}`;
+  }
+  if(c.type === 'end'){
+    return `${E('title',c.title)}${c.cta?`<div class="cta" contenteditable="true">${c.cta}</div>`:''}${page}`;
+  }
+  return `${c.num?`<div class="num">${c.num}</div>`:''}${E('title',c.title)}<div class="bar"></div>${E('sub',c.sub||'')}${page}`;
+}
+
+/* 이미지를 못 불러오면 컬러 칩(근사색)으로 대신 보여 줘요 */
+function fallbackChip(img, color){
+  const p = img.parentNode;
+  p.innerHTML = '<div class="chip" style="background:'+color+'"></div><div class="ph">사진 넣기 · 클릭하거나 끌어다 놓기</div>';
+}
+
+/* 제품 카드의 사진 자리: 클릭해서 고르거나 파일을 끌어다 놓으면 사진이 들어가요 (내 컴퓨터 안에서만 처리돼요) */
+function wireSlots(){
+  document.querySelectorAll('.card.product .pimg').forEach(slot=>{
+    const put = file => {
+      if(!file || !/^image\//.test(file.type)) return;
+      const r = new FileReader();
+      r.onload = () => {
+        slot.innerHTML = '<img alt="" src="'+r.result+'">';
+        const approx = slot.closest('.card').querySelector('.approx'); if(approx) approx.remove();
+      };
+      r.readAsDataURL(file);
+    };
+    slot.addEventListener('click', () => {
+      const inp = document.createElement('input'); inp.type='file'; inp.accept='image/*';
+      inp.onchange = () => put(inp.files[0]); inp.click();
+    });
+    slot.addEventListener('dragover', e => { e.preventDefault(); slot.classList.add('drag'); });
+    slot.addEventListener('dragleave', () => slot.classList.remove('drag'));
+    slot.addEventListener('drop', e => { e.preventDefault(); slot.classList.remove('drag'); put(e.dataTransfer.files[0]); });
+  });
+}
+
+function build(){
+  const g = $('gallery'); g.innerHTML = '';
+  CARDS.forEach((c,i)=>{
+    const slot = document.createElement('div'); slot.className = 'slot';
+    const remote = /^https?:/i.test(c.img||'');
+    slot.innerHTML = `<div class="label"><span>${i+1}장${remote?' <b style="color:#b3261e">· 원격 이미지는 PNG에 빠질 수 있어요. images/ 폴더에 내려받아 쓰세요</b>':''}</span><button data-i="${i}">이 장 PNG 저장</button></div>
+      <div class="card ${c.type}" id="card-${i}">${cardHTML(c,i,CARDS.length)}</div>`;
+    g.appendChild(slot);
+  });
+  g.querySelectorAll('button[data-i]').forEach(b => b.addEventListener('click', () => savePNG(+b.dataset.i)));
+}
+
+async function savePNG(i){
+  document.body.classList.add('exporting');
+  root.setProperty('--z', 1);
+  await new Promise(r => setTimeout(r, 200));
+  try{
+    const canvas = await html2canvas($('card-'+i), {scale:1, backgroundColor:null, useCORS:true});
+    const a = document.createElement('a');
+    a.download = `card-${String(i+1).padStart(2,'0')}.png`;
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  } catch(err){
+    alert('저장에 실패했어요. 인터넷 연결을 확인하거나, 화면 캡처로 대신해 주세요.');
+  } finally {
+    document.body.classList.remove('exporting');
+    fitZoom();
+  }
+}
+$('save-all').addEventListener('click', async () => {
+  for(let i=0;i<CARDS.length;i++){ await savePNG(i); await new Promise(r=>setTimeout(r,400)); }
+});
+
+/* 화면 폭에 맞춰 미리보기 크기를 자동 조절 (저장되는 PNG는 항상 1080x1350) */
+function fitZoom(){
+  const z = Math.min(.38, Math.max(.1, (window.innerWidth - 40) / 1080));
+  root.setProperty('--z', z.toFixed(3));
+}
+window.addEventListener('resize', fitZoom);
+
+applyPalette();
+build();
+wireSlots();
+fitZoom();
+</script>
+</body>
+</html>
